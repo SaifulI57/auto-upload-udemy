@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any
 import httpx
-from playwright.async_api import async_playwright, Playwright
+# from playwright.async_api import async_playwright, Playwright
 from bs4 import BeautifulSoup
 import re
 from dotenv import load_dotenv
@@ -180,29 +180,29 @@ class BaseRequest():
                     print("Failed")
                     continue
             print("all done for now")
-    async def fetch_page_udemy(self):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            try:
-                await page.set_extra_http_headers(self.headers)
-                await page.goto(self.channelUrl, wait_until="networkidle")
-                await page.wait_for_load_state('networkidle')
-                content = await page.content()
-            except Exception as e:
-                print(f"Error fetching page: {e}")
-                return None
-            finally:
-                await browser.close()
-            content = BeautifulSoup(content, "html.parser")
-            return content
+    # async def fetch_page_udemy(self):
+    #     async with async_playwright() as p:
+    #         browser = await p.chromium.launch(headless=True)
+    #         page = await browser.new_page()
+    #         try:
+    #             await page.set_extra_http_headers(self.headers)
+    #             await page.goto(self.channelUrl, wait_until="networkidle")
+    #             await page.wait_for_load_state('networkidle')
+    #             content = await page.content()
+    #         except Exception as e:
+    #             print(f"Error fetching page: {e}")
+    #             return None
+    #         finally:
+    #             await browser.close()
+    #         content = BeautifulSoup(content, "html.parser")
+    #         return content
 
-async def run(playwright: Playwright):
-    chromium = playwright.chromium 
-    browser = await chromium.launch_persistent_context(user_data_dir=r"C:\Users\saifu\AppData\Local\Google\Chrome\User Data",headless=False, args=["--profile-directory=Profile 13"])
-    page = await browser.new_page()
-    await page.goto("https://www.udemy.com/course/marketing-digital-facebook-ads-ecommerce-ventas-online-dropshipping/?couponCode=310724")
-    print(await page.content())
+# async def run(playwright: Playwright):
+#     chromium = playwright.chromium 
+#     browser = await chromium.launch_persistent_context(user_data_dir=r"C:\Users\saifu\AppData\Local\Google\Chrome\User Data",headless=False, args=["--profile-directory=Profile 13"])
+#     page = await browser.new_page()
+#     await page.goto("https://www.udemy.com/course/marketing-digital-facebook-ads-ecommerce-ventas-online-dropshipping/?couponCode=310724")
+#     print(await page.content())
 
 
 async def main():
