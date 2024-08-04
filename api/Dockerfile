@@ -1,4 +1,4 @@
-FROM s390x/golang:1.21.12-alpine3.19
+FROM s390x/golang:1.22.5-alpine3.20
 
 
 WORKDIR /app
