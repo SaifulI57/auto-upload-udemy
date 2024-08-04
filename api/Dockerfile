@@ -1,13 +1,12 @@
-FROM s390x/alpine:latest
+FROM s390x/golang:1.21.12-alpine3.19
 
-RUN apk --no-cache add libc6-compat
 
 WORKDIR /app
 
-COPY short .
+COPY . .
 
-RUN chmod +x /app/short
+RUN go mod tidy
 
-CMD ["./short"]
+CMD ["go", "run", "main.go"]
 
 EXPOSE 3000
