@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 # from playwright.async_api import async_playwright, Playwright
 from bs4 import BeautifulSoup
+from loguru import logger
 import re
 from dotenv import load_dotenv
 import os
@@ -60,14 +61,14 @@ class BaseRequest():
     
     async def make_request(self):
         async with httpx.AsyncClient() as client:
-            print("Requesting Base Url...")
+            logger.info("Making request to baseUrl....")
             res = await client.get(self.channelUrl, headers=self.headers)
             content = b""
             async for chunk in res.aiter_bytes():
                 content += chunk
-            print("Done✅")
+            logger.info("Done✅")
             soup = BeautifulSoup(content, "html.parser")
-            print("Parsing html with bs4...")
+            logger.info("Parsing html with bs4...")
             soup = await self.extract_soup(soup)
             return soup
     async def test_request(self):
@@ -89,16 +90,18 @@ class BaseRequest():
     async def extract_soup(self, soup: BeautifulSoup):
         async with httpx.AsyncClient() as client:
             images = []
+            logger.info("Extracting Message...")
             for i in soup.find_all("a", class_="tgme_widget_message_photo_wrap", style=True):
                 try:
                     temp = re.search(r"background-image:url\(['\"]?(.*?)['\"]?\)",i['style']).group(1)
                     images.append(temp)
+                    logger.info("No error occure")
                 except:
-                    print("Non Type")
+                    logger.error("cannot search source Image...")
             links = [a_tag['href'] for a_tag in soup.find_all('a', href=True) if "coursekingdom.xyz" in a_tag['href']]
             description = [ x.decode_contents().split("<br/>") for x in soup.find_all(class_="tgme_widget_message_text")]
             for i, v in enumerate(description):
-                print("looping description:", i)
+                logger.info("Loop through description... ")
                 image = images[i]
                 base_resp = await self.fetch_baseurl(links[i])
                 parse_base = [self.parserUrl(x['href']) for x in base_resp.find_all("a", href=True)]
@@ -109,76 +112,85 @@ class BaseRequest():
                 
                 hashdesc = self.md5_hash_string(desc)
                 
-                print("Checking existing hash...")
+                logger.info("Checking existing key...")
                 resp = self.redis_uri.get(hashdesc)
                 
                 if resp is not None:
-                    print("Key Exists, Skipping...")
+                    logger.info("Key Exist, skipping....")
                     continue
                     
                 
                 
                 if base_links == [] or base_links == "Not Found":
+                    logger.info("cannot found udemy link")
                     continue
-                print("Creating gplinks...")
-                gplinks = await client.get(f"https://api.gplinks.com/api?api={self.api_key}&url={base_links}")
-                try:
-                    payload = {
-                        "long_url": gplinks.json()["shortenedUrl"]
+                if os.getenv("deploy") == "development":
+                    description[i] = {"desc": BeautifulSoup("\n\n\n".join([x for x in v if x != " "][:4]), "html.parser").text + f"\nEnroll Now 👉: {base_links}", "image": image}
+                else:
+                    logger.debug("Start Creating gplinks...")
+                    gplinks = await client.get(f"https://api.gplinks.com/api?api={self.api_key}&url={base_links}")
+                    try:
+                        payload = {
+                            "long_url": gplinks.json()["shortenedUrl"]
+                        }
+                        logger.warning("Error parse response gplink into payload....")
+                    except:
+                        logger.error("parse gplink error, skipping...")
+                        continue
+                    headers = {
+                        'X-Auth-Id': self.auth_id,
+                        'X-Auth-Key': self.auth_key,
+                        'User-Agent': 'Apidog/1.0.0 (https://apidog.com)',
+                        'Content-Type': 'application/json'
                     }
-                except:
-                    continue
-                headers = {
-                    'X-Auth-Id': self.auth_id,
-                    'X-Auth-Key': self.auth_key,
-                    'User-Agent': 'Apidog/1.0.0 (https://apidog.com)',
-                    'Content-Type': 'application/json'
-                }
-                print("Creating S.id link...")
-                response = await client.post(
-                    "https://api.s.id/v1/links",
-                    json=payload,
-                    headers=headers
-                )
-                try:
-                    data = response.json()
-                    data = "https://s.id/"+ data["data"]["short"]
-                except:
-                    print("Skipping S.id link, limit reached...")
-                    print("Creating Local short link...")
-                    response = await client.post("http://go_app:3000/short", data={"url": payload["long_url"]})
-                    data = response.json()
-                    data = "https://short.unbound.my.id/" + data["id"]
-                description[i] = {"desc": BeautifulSoup("\n\n".join([x for x in v if x != " "][:4]), "html.parser").text + f"\nEnroll Now 👉: {data}", "image": image}
-                self.redis_uri.set(hashdesc, json.dumps(description[i]))
+                    logger.info("Start Creating S.id link...")
+                    response = await client.post(
+                        "https://api.s.id/v1/links",
+                        json=payload,
+                        headers=headers
+                    )
+                    try:
+                        data = response.json()
+                        data = "https://s.id/"+ data["data"]["short"]
+                        logger.info("error parsing response, will use locally instead...")
+                    except:
+                        print("Skipping S.id link, limit reached...")
+                        print("Creating Local short link...")
+                        response = await client.post("http://go_app:3000/short", data={"url": payload["long_url"]})
+                        data = response.json()
+                        data = "https://short.unbound.my.id/" + data["id"]
+                    description[i] = {"desc": BeautifulSoup("\n\n\n".join([x for x in v if x != " "][:4]), "html.parser").text + f"\nEnroll Now 👉: {data}", "image": image}
+                self.redis_uri.setex(hashdesc, 6 * 60 * 60, json.dumps(description[i]))
             return description
         
     async def post_facebook(self, desc):
         async with httpx.AsyncClient(timeout=240.0) as client:
             for i in desc:
-                try:
-                    print("Try parsing to post facebook...")
-                    data = {
-                        "url": i["image"],
-                        "message": i["desc"],
-                        "published": "true",
-                        "access_token": self.facebook_key
-                    } 
-                except:
-                    print("Skipping parsing error occured...")
-                    continue
-                
-                url = f"https://graph.facebook.com/v20.0/{self.page_id}/photos"
-                print("Posting to Facebook...")
-                res = await client.post(url, data=data)
-                try:
-                    print("Success")
-                    if res.json()["id"] != "":
+                if type(i) != list:
+                    try:
+                        logger.info(f"Try parsing to post facebook...  {i}")
+                        data = {
+                            "url": i["image"],
+                            "message": i["desc"],
+                            "published": "true",
+                            "access_token": self.facebook_key
+                        } 
+                    except Exception as e:
+                        logger.warning("Skipping parsing error occured...", e)
                         continue
-                except:
-                    print("Failed")
-                    continue
-            print("all done for now")
+                    
+                    url = f"https://graph.facebook.com/v20.0/{self.page_id}/photos"
+                    logger.info("Posting to Facebook...")
+                    res = await client.post(url, data=data)
+                    try:
+                        logger.info(f"f{res.json()}")
+                        if res.json()["id"] != "":
+                            continue
+                        logger.info("Status: Success")
+                    except:
+                        logger.info("Status: Failed")
+                        continue
+            logger.info("all done for now")
     # async def fetch_page_udemy(self):
     #     async with async_playwright() as p:
     #         browser = await p.chromium.launch(headless=True)
@@ -211,9 +223,9 @@ async def main():
         soup = await makeReq.make_request()
         post = await makeReq.post_facebook(soup)
         
-        print("Posted")
-        
-        await asyncio.sleep(3 * 60 * 60)
+        logger.info("Posted")
+        logger.info("sleeping for 1 hour 20 minutes")
+        await asyncio.sleep(80 * 60)
         
         
         
