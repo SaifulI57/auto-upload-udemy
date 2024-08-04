@@ -103,7 +103,7 @@ class BaseRequest():
                 base_resp = await self.fetch_baseurl(links[i])
                 parse_base = [self.parserUrl(x['href']) for x in base_resp.find_all("a", href=True)]
                 base_links = [x for x in parse_base if x != "Not Found"][0]
-                desc = BeautifulSoup(v[0], "html_parser").text
+                desc = BeautifulSoup(v[0], "html.parser").text
                 
                 
                 
