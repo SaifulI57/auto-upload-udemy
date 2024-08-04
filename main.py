@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import os
 import redis
 import hashlib
-
+import json
 
 load_dotenv()
 
@@ -110,7 +110,7 @@ class BaseRequest():
                 hashdesc = self.md5_hash_string(desc)
                 
                 print("Checking existing hash...")
-                resp = await self.redis_uri.get(hashdesc)
+                resp = self.redis_uri.get(hashdesc)
                 
                 if resp is not None:
                     print("Key Exists, Skipping...")
@@ -150,7 +150,7 @@ class BaseRequest():
                     data = response.json()
                     data = "https://short.unbound.my.id/" + data["id"]
                 description[i] = {"desc": BeautifulSoup("\n\n".join([x for x in v if x != " "][:4]), "html.parser").text + f"\nEnroll Now 👉: {data}", "image": image}
-                await self.redis_uri.set(hashdesc, description[i])
+                self.redis_uri.set(hashdesc, json.dumps(description[i]))
             return description
         
     async def post_facebook(self, desc):
