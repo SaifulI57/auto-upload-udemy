@@ -1,10 +1,12 @@
-FROM alpine:latest
+FROM s390x/alpine:latest
 
 RUN apk --no-cache add libc6-compat
 
-WORKDIR /root/
+WORKDIR /app
 
 COPY short .
+
+RUN chmod +x /app/short
 
 CMD ["./short"]
 

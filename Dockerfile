@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM s390x/python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1
 
