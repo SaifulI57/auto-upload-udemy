@@ -51,7 +51,7 @@ class BaseRequest():
         pattern = r"https://www\.udemy\.com/.*/.*/\?couponCode=[a-zA-Z0-9]+"
         match = re.search(pattern, url)
         return match.group() if match else "Not Found"
-    def md5_hash_string(s: str) -> str:
+    def md5_hash_string(self, s: str) -> str:
         hash_object = hashlib.md5()
         
         hash_object.update(s.encode('utf-8'))
@@ -104,7 +104,6 @@ class BaseRequest():
                 parse_base = [self.parserUrl(x['href']) for x in base_resp.find_all("a", href=True)]
                 base_links = [x for x in parse_base if x != "Not Found"][0]
                 desc = BeautifulSoup(v[0], "html.parser").text
-                
                 
                 
                 
