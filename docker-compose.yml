@@ -10,7 +10,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
-      # - ./local_file.txt:/app/local_file.txt
+      - ./cert/cloudflare_origin_cert.pem:/etc/ssl/certs/cloudflare_origin_cert.pem
+      - ./cert/cloudflare_origin_key.pem:/etc/ssl/private/cloudflare_origin_key.pem
     depends_on:
       - go_app
   go_app:
